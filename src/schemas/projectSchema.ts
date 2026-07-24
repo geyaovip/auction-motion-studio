@@ -81,6 +81,11 @@ export const projectSchema = z
       })
       .optional(),
   })
+  .transform((project) =>
+    project.templateId === "artwork-showcase"
+      ? { ...project, lots: project.lots.slice(0, 1) }
+      : project,
+  )
   .superRefine((project, context) => {
     if (
       project.templateId === "auction-result" &&

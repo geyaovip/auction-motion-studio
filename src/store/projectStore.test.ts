@@ -61,6 +61,17 @@ describe("project editor history", () => {
     expect(useProjectStore.getState().history).toHaveLength(0);
   });
 
+  it("does not add ignored lots to an artwork showcase", () => {
+    const before = useProjectStore.getState().project.lots;
+
+    useProjectStore.getState().addLot();
+
+    expect(useProjectStore.getState().project.lots).toEqual(before);
+    expect(useProjectStore.getState().formError).toBe(
+      "作品特写仅支持一件拍品",
+    );
+  });
+
   it("replaces the project cover and restores it with undo", () => {
     const original = useProjectStore.getState().project.cover;
     const replacement = {

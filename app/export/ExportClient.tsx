@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Player } from "@remotion/player";
 import { canRenderMediaOnWeb, renderMediaOnWeb } from "@remotion/web-renderer";
 import {
@@ -14,17 +15,29 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { AuctionComposition } from "@/src/remotion/AuctionComposition";
+import { readWorkspaceProject } from "@/src/lib/workspaceStorage";
 import { useProjectStore } from "@/src/store/projectStore";
 
 type RenderState = "idle" | "checking" | "rendering" | "complete" | "error";
 
 export function ExportClient() {
-  const { project, timeline, qualityReport } = useProjectStore();
+  const { project, timeline, qualityReport, loadProject } = useProjectStore();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId");
+  const loadedProjectId = useRef<string>();
   const [state, setState] = useState<RenderState>("checking");
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState("正在检查浏览器能力…");
   const [downloadUrl, setDownloadUrl] = useState<string>();
   const [controller, setController] = useState<AbortController>();
+
+  useEffect(() => {
+    if (!projectId || loadedProjectId.current === projectId) return;
+    const record = readWorkspaceProject(projectId);
+    if (!record) return;
+    loadedProjectId.current = projectId;
+    loadProject(record.project);
+  }, [loadProject, projectId]);
 
   const fileName = useMemo(
     () =>
@@ -115,14 +128,21 @@ export function ExportClient() {
   return (
     <main className="export-page">
       <header className="export-header shell">
-        <Link href="/editor" className="button button-ghost button-small">
-          <ArrowLeft size={16} /> 返回编辑器
-        </Link>
-        <Link href="/" className="brand brand-compact">
-          <span className="brand-mark">拍</span>
-          <span>拍卖影像工作室</span>
-        </Link>
-        <span className="export-header-spacer" />
+        <div className="export-header-left">
+          <Link
+            href={projectId ? `/projects/${projectId}` : "/editor"}
+            className="icon-button"
+            aria-label="返回编辑器"
+          >
+            <ArrowLeft size={17} />
+          </Link>
+          <Link href="/workbench" className="brand">
+            <span className="brand-mark">拍</span>
+            <span>拍卖影像工作室</span>
+          </Link>
+          <span className="export-header-divider" />
+          <strong>导出视频</strong>
+        </div>
       </header>
       <section className="export-shell shell">
         <div className="export-preview">

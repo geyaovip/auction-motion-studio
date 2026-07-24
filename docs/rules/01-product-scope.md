@@ -55,7 +55,7 @@ The user MUST NOT need to repair element positions, font sizes, crops, transitio
 ### Editor
 
 - Contains toolbar, assets panel, scaled final-canvas preview, inspector, and scene timeline.
-- Lists project lots at left; selecting a lot shows that lot's images and semantic fields together in the inspector.
+- Shows the lot master list and Add Lot action only for the multi-lot Auction Preview and Auction Result templates. Artwork Showcase is a single-lot project, so it opens directly with that lot's images and semantic fields in the inspector.
 - Keeps project-level cover and auction information separate from lot-level images and facts.
 - Lets the user replace the project cover inside Project Settings; the same validated asset updates the Workbench card, Opening, and Ending.
 - Exposes semantic controls only.
@@ -66,6 +66,7 @@ The user MUST NOT need to repair element positions, font sizes, crops, transitio
 ### Export
 
 - Revalidates the exact project snapshot being exported.
+- Preserves the originating project route so Back returns to the same project editor.
 - Shows stage, progress, failure reason, and retry.
 - Provides the completed MP4 only after quality gates pass.
 

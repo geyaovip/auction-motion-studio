@@ -168,15 +168,9 @@ export function EditorClient({ projectId }: { projectId?: string }) {
 
   useEffect(() => {
     if (!projectId) return;
+    if (loadedProjectId.current === projectId) return;
     const record = readWorkspaceProject(projectId);
     if (!record) return;
-    const alreadyLoaded =
-      loadedProjectId.current === projectId &&
-      store.project.projectName === record.project.projectName &&
-      store.project.templateId === record.project.templateId &&
-      store.project.lots.length === record.project.lots.length &&
-      store.project.lots[0]?.id === record.project.lots[0]?.id;
-    if (alreadyLoaded) return;
     skipNextSave.current = true;
     store.loadProject(record.project);
     loadedProjectId.current = projectId;
@@ -201,6 +195,8 @@ export function EditorClient({ projectId }: { projectId?: string }) {
   const lot =
     store.project.lots.find((item) => item.id === store.selectedLotId) ??
     store.project.lots[0];
+  const isSingleLotProject =
+    store.project.templateId === "artwork-showcase";
   const selected =
     store.timeline.scenes.find((scene) => scene.id === store.selectedSceneId) ??
     store.timeline.scenes[0];
@@ -320,50 +316,59 @@ export function EditorClient({ projectId }: { projectId?: string }) {
           >
             <Sparkles size={15} /> 重新生成
           </button>
-          <Link href="/export" className="button button-dark button-small">
+          <Link
+            href={projectId ? `/export?projectId=${projectId}` : "/export"}
+            className="button button-dark button-small"
+          >
             <Download size={15} /> 导出
           </Link>
         </div>
       </header>
 
-      <div className="studio-grid studio-grid-lots">
-        <aside className="panel lot-panel">
-          <div className="panel-title panel-title-action">
-            <div>
-              <span>拍品</span>
-              <small>{store.project.lots.length} 件拍品</small>
-            </div>
-            <button
-              className="icon-button"
-              aria-label="添加拍品"
-              onClick={store.addLot}
-            >
-              <Plus size={15} />
-            </button>
-          </div>
-          <div className="lot-list">
-            {store.project.lots.map((item) => (
+      <div
+        className={`studio-grid ${
+          isSingleLotProject ? "studio-grid-single-lot" : "studio-grid-lots"
+        }`}
+      >
+        {!isSingleLotProject ? (
+          <aside className="panel lot-panel">
+            <div className="panel-title panel-title-action">
+              <div>
+                <span>拍品</span>
+                <small>{store.project.lots.length} 件拍品</small>
+              </div>
               <button
-                className={`lot-row ${
-                  item.id === lot.id ? "selected" : ""
-                }`}
-                key={item.id}
-                type="button"
-                onClick={() => store.selectLot(item.id)}
+                className="icon-button"
+                aria-label="添加拍品"
+                onClick={store.addLot}
               >
-                <img src={item.images[0]?.url} alt={item.title} />
-                <span>
-                  <strong>{item.title}</strong>
-                  <small>{item.lotNumber ?? "未填写拍品号"}</small>
-                </span>
-                <i />
+                <Plus size={15} />
               </button>
-            ))}
-          </div>
-          <button className="reset-button" onClick={store.resetDemo}>
-            <RotateCcw size={14} /> 恢复演示项目
-          </button>
-        </aside>
+            </div>
+            <div className="lot-list">
+              {store.project.lots.map((item) => (
+                <button
+                  className={`lot-row ${
+                    item.id === lot.id ? "selected" : ""
+                  }`}
+                  key={item.id}
+                  type="button"
+                  onClick={() => store.selectLot(item.id)}
+                >
+                  <img src={item.images[0]?.url} alt={item.title} />
+                  <span>
+                    <strong>{item.title}</strong>
+                    <small>{item.lotNumber ?? "未填写拍品号"}</small>
+                  </span>
+                  <i />
+                </button>
+              ))}
+            </div>
+            <button className="reset-button" onClick={store.resetDemo}>
+              <RotateCcw size={14} /> 恢复演示项目
+            </button>
+          </aside>
+        ) : null}
 
         <section className="workspace">
           <div className="preview-area">

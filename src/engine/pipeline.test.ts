@@ -10,6 +10,30 @@ describe("auction motion pipeline", () => {
     expect(runPipeline(demoProject)).toEqual(runPipeline(demoProject));
   });
 
+  it("migrates legacy artwork showcases to one visible lot", () => {
+    const firstLot = demoProject.lots[0];
+    const result = runPipeline({
+      ...demoProject,
+      lots: [
+        firstLot,
+        {
+          ...firstLot,
+          id: "legacy-hidden-lot",
+          title: "不应被隐藏保留的拍品",
+        },
+      ],
+    });
+
+    expect(result.project.lots).toHaveLength(1);
+    expect(result.project.lots[0].id).toBe(firstLot.id);
+    expect(
+      result.scenes.every(
+        (scene) =>
+          scene.sourceLotId === undefined || scene.sourceLotId === firstLot.id,
+      ),
+    ).toBe(true);
+  });
+
   it("builds all supported aspect ratios at 30 fps", () => {
     for (const aspectRatio of ["9:16", "16:9", "1:1"] as const) {
       const result = runPipeline({ ...demoProject, aspectRatio });
@@ -75,10 +99,12 @@ describe("auction motion pipeline", () => {
       expect(openingImage.blurBackground).toBe(true);
     }
 
-    const preview = runPipeline({
-      ...demoProject,
-      templateId: "auction-preview",
-    });
+    const previewProject = workspaceProjects.find(
+      (record) => record.project.templateId === "auction-preview",
+    )?.project;
+    expect(previewProject).toBeDefined();
+    if (!previewProject) return;
+    const preview = runPipeline(previewProject);
     const lotScenes = preview.scenes.filter((scene) => scene.type === "hero");
     expect(new Set(lotScenes.map((scene) => scene.layoutPreset)).size).toBe(3);
     for (let index = 1; index < lotScenes.length; index += 1) {

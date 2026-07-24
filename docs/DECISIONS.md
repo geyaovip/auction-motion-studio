@@ -18,6 +18,7 @@ Decisions here resolve ambiguity in the source SDS. New entries are append-only;
 | fixed project template and direct focal-point editing | D-012 |
 | elongated artwork detail scan | D-013 |
 | workbench navigation threshold | D-014 |
+| single-lot artwork showcase boundary | D-015 |
 
 ## D-001 — Separate raw editing state from canonical project input
 
@@ -131,3 +132,11 @@ Decisions here resolve ambiguity in the source SDS. New entries are append-only;
 - **Context:** The Workbench sidebar repeated the current page, linked to sections already represented by type filters, and exposed an unavailable Recycle Bin. It occupied persistent space while suggesting product areas that did not exist.
 - **Decision:** Replace the Workbench sidebar with a lightweight top brand bar. Keep project-type filtering in the page content and expose only implemented routes and actions. Add persistent global navigation only when at least two independent, working destinations require it.
 - **Consequence:** The Workbench gives project content more horizontal space, removes misleading affordances, and keeps the information architecture proportional to the actual MVP.
+
+## D-015 — Artwork Showcase enforces one lot across data, editor, and engine
+
+- **Date:** 2026-07-24
+- **Status:** Accepted.
+- **Context:** Artwork Showcase renders a narrative about one primary lot, but the editor exposed a multi-lot list and Add Lot action. Extra lots were silently ignored by the template engine, so the interface promised content that could never appear in the video.
+- **Decision:** Artwork Showcase stores and renders exactly its first lot. Persisted legacy inputs are deterministically migrated to that first lot at the Zod boundary. Its editor omits the lot master list and Add Lot action, while Auction Preview and Auction Result retain multi-lot management.
+- **Consequence:** Every visible lot affects the generated video, existing single-lot drafts remain compatible, and users are no longer invited to create ignored content.

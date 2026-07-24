@@ -221,6 +221,9 @@ export const useProjectStore = create<ProjectStore>((set) => ({
 
   addLot: () =>
     set((state) => {
+      if (state.project.templateId === "artwork-showcase") {
+        return { formError: "作品特写仅支持一件拍品" };
+      }
       const nextNumber = state.project.lots.length + 1;
       const lot = {
         id: `lot-local-${Date.now()}`,

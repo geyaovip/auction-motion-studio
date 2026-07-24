@@ -117,7 +117,7 @@ Home → Workbench → Create Project → Project Detail Editor → Export
   implemented destinations require it. In-page anchors and unavailable features
   never appear as primary navigation.
 - Project cards use project cover imagery, not an unrelated selected lot thumbnail.
-- The project-detail editor uses a lot master list at left. The right inspector keeps the selected lot's images and semantic fields on the same scroll surface.
+- Auction Preview and Auction Result use a lot master list at left. Artwork Showcase has exactly one lot and omits the redundant master list and Add Lot action. In every template, the right inspector keeps the active lot's images and semantic fields on the same scroll surface.
 - Project information remains editable through progressive disclosure and is never mixed into an unrelated lot.
 - Project Settings exposes a visible project-cover preview with a direct Replace action and explains its Workbench/Opening/Ending scope.
 
