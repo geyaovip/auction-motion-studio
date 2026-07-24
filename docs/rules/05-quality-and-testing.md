@@ -90,6 +90,10 @@ For each relevant layout preset, include:
 - missing artist, estimate, metadata, and logo
 - low-resolution image
 - focal points near all four boundaries
+- opening and ending cover preservation for landscape, square, portrait, and elongated assets
+- elongated Hero detail scale and meaningful long-axis travel; reject fixtures that effectively show the complete work with only decorative drift
+- ultra-portrait `16:9` visual balance: image viewport width, text separation,
+  and metadata presence
 
 Snapshot resolved JSON, diagnostics, and issue codes. Do not use snapshots as the only assertion for safety boundaries.
 
@@ -106,7 +110,10 @@ Within the matrix, cover at least three image orientations and capture first, mi
 Compare:
 
 - safe-area containment
+- geometric centering of bounded media under asymmetric `9:16` text safe areas
 - crop and focal subject preservation
+- intrinsic aspect-ratio preservation when resolved `cover` dimensions overflow
+  the image viewport in either axis
 - title wrapping and hierarchy
 - logo bounds
 - color/contrast
@@ -135,6 +142,8 @@ Also cover:
 - Auction Result without sale price is blocked and recoverable.
 - Low-resolution image warns but can proceed if no other gate fails.
 - Reorder, disable, duration edit, Undo, and Redo update the timeline correctly.
+- Unchanged field blur and unchanged focal-point commits do not create Undo entries.
+- Direct focal-point selection changes only crop-based lot-image placements and is reversible with Undo/Redo.
 - Aspect/theme change invalidates stale resolution and regenerates.
 - Render failure shows stage, safe message, and retry.
 

@@ -105,6 +105,22 @@ Do not use oversized marketing headings inside the editor.
 
 ## Workspace layout
 
+Application-level routing:
+
+```text
+Home → Workbench → Create Project → Project Detail Editor → Export
+```
+
+- Workbench is the project index; it MUST NOT open directly into an arbitrary demo lot.
+- Workbench uses a lightweight top brand bar and content-level type filters.
+  Do not show a persistent global navigation rail until at least two independent,
+  implemented destinations require it. In-page anchors and unavailable features
+  never appear as primary navigation.
+- Project cards use project cover imagery, not an unrelated selected lot thumbnail.
+- The project-detail editor uses a lot master list at left. The right inspector keeps the selected lot's images and semantic fields on the same scroll surface.
+- Project information remains editable through progressive disclosure and is never mixed into an unrelated lot.
+- Project Settings exposes a visible project-cover preview with a direct Replace action and explains its Workbench/Opening/Ending scope.
+
 Desktop baseline:
 
 ```text
@@ -128,7 +144,7 @@ Bottom timeline: 192–240px resizable range
 ### Command bar
 
 - Project identity at left.
-- Template and aspect controls near context.
+- Aspect and video-theme controls remain near context. The template is chosen during project creation and is not switchable in the editor.
 - Undo/Redo are icon buttons with labels/tooltips and disabled states.
 - Generate is the primary editor action before a resolved timeline exists.
 - Export becomes primary only after generation and a passing quality state.
@@ -138,6 +154,7 @@ Bottom timeline: 192–240px resizable range
 ### Assets panel
 
 - Uses compact rows/thumbnails with upload, reorder, remove, focal-point edit, and resolution status.
+- Focal-point editing is a direct subject picker on the uncropped image. Copy explains that it controls which part remains visible when a later video layout crops the lot image.
 - Low-resolution state uses warning color and plain corrective text.
 - Empty state explains the minimum required asset.
 

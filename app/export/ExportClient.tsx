@@ -119,8 +119,8 @@ export function ExportClient() {
           <ArrowLeft size={16} /> 返回编辑器
         </Link>
         <Link href="/" className="brand brand-compact">
-          <span className="brand-mark">A</span>
-          <span>Auction Motion Studio</span>
+          <span className="brand-mark">拍</span>
+          <span>拍卖影像工作室</span>
         </Link>
         <span className="export-header-spacer" />
       </header>
@@ -141,7 +141,7 @@ export function ExportClient() {
           </div>
         </div>
         <div className="export-card">
-          <div className="eyebrow"><Film size={15} /> EXPORT MP4</div>
+          <div className="eyebrow"><Film size={15} /> 导出 MP4</div>
           <h1>交付你的成片。</h1>
           <p className="export-intro">
             视频将在当前浏览器中完成渲染。图片与项目资料不会上传至渲染服务器。

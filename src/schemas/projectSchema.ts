@@ -67,6 +67,7 @@ export const projectSchema = z
     ]),
     aspectRatio: z.enum(["16:9", "9:16", "1:1"]),
     themeId: z.enum(["classic-light", "classic-dark"]),
+    cover: assetSchema.optional(),
     logo: assetSchema.optional(),
     lots: z.array(lotSchema).min(1),
     auction: z

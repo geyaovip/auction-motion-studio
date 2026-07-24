@@ -28,19 +28,30 @@ test("server-renders the product landing page", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /Auction Motion Studio/);
+  assert.match(html, /拍卖影像工作室/);
   assert.match(html, /让每一件作品/);
-  assert.match(html, /href="\/editor"/);
+  assert.match(html, /href="\/workbench"/);
   assert.doesNotMatch(html, /codex-preview/);
   assert.doesNotMatch(html, /Starter Project/);
 });
 
-test("server-renders editor and export routes", async () => {
-  const [editor, exportPage] = await Promise.all([render("/editor"), render("/export")]);
+test("server-renders workbench, create, editor and export routes", async () => {
+  const [workbench, createPage, editor, exportPage] = await Promise.all([
+    render("/workbench"),
+    render("/projects/new"),
+    render("/editor"),
+    render("/export"),
+  ]);
+  assert.equal(workbench.status, 200);
+  assert.equal(createPage.status, 200);
   assert.equal(editor.status, 200);
   assert.equal(exportPage.status, 200);
+  const workbenchHtml = await workbench.text();
+  const createHtml = await createPage.text();
   const editorHtml = await editor.text();
   const exportHtml = await exportPage.text();
+  assert.match(workbenchHtml, /我的拍卖视频/);
+  assert.match(createHtml, /创建视频项目/);
   assert.match(editorHtml, /编辑器/);
   assert.match(exportHtml, /导出/);
 });

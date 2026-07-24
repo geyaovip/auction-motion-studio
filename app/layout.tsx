@@ -17,8 +17,8 @@ export const metadata: Metadata = {
     "https://auction-motion-studio.gaigai111.chatgpt.site",
   ),
   title: {
-    default: "Auction Motion Studio",
-    template: "%s · Auction Motion Studio",
+    default: "拍卖影像工作室",
+    template: "%s · 拍卖影像工作室",
   },
   description:
     "面向艺术品与拍卖业务的自动化营销视频工作台。上传作品，生成版式，直接导出 MP4。",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     shortcut: "/favicon.svg",
   },
   openGraph: {
-    title: "Auction Motion Studio",
+    title: "拍卖影像工作室",
     description: "从拍品资料到可交付营销视频，只需几分钟。",
     images: ["/og.png"],
   },

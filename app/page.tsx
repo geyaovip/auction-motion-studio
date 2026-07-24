@@ -6,12 +6,12 @@ export default function Home() {
     <main className="landing">
       <nav className="landing-nav shell">
         <Link href="/" className="brand">
-          <span className="brand-mark">A</span>
-          <span>Auction Motion Studio</span>
+          <span className="brand-mark">拍</span>
+          <span>拍卖影像工作室</span>
         </Link>
         <div className="nav-actions">
           <a href="#workflow" className="text-link">工作方式</a>
-          <Link href="/editor" className="button button-dark button-small">
+          <Link href="/workbench" className="button button-dark button-small">
             打开工作台
           </Link>
         </div>
@@ -26,7 +26,7 @@ export default function Home() {
             在浏览器中直接预览并导出高清 MP4。
           </p>
           <div className="hero-actions">
-            <Link href="/editor" className="button button-dark">
+            <Link href="/workbench" className="button button-dark">
               用示例开始创作 <ArrowRight size={17} />
             </Link>
             <a href="#templates" className="button button-ghost">
@@ -48,9 +48,9 @@ export default function Home() {
           <div className="stage-card stage-card-front">
             <img src="/demo/artwork-main.jpg" alt="花卉作品视频画面" />
             <div className="stage-overlay">
-              <span>LOT 18</span>
-              <strong>Floral Study No. 7</strong>
-              <small>ATELIER AUCTIONS · HONG KONG</small>
+              <span>拍品 18</span>
+              <strong>花卉研究之七</strong>
+              <small>雅集拍卖 · 中国香港</small>
             </div>
           </div>
           <div className="stage-note">9:16 · 30 FPS · MP4</div>
@@ -59,7 +59,7 @@ export default function Home() {
 
       <section className="workflow shell" id="workflow">
         <div className="section-heading">
-          <span>WORKFLOW</span>
+          <span>创作流程</span>
           <h2>从资料到成片，保持简单。</h2>
         </div>
         <div className="workflow-grid">
@@ -80,22 +80,22 @@ export default function Home() {
 
       <section className="template-section shell" id="templates">
         <div className="section-heading">
-          <span>TEMPLATES</span>
+          <span>视频模板</span>
           <h2>为不同拍卖叙事准备的三种结构。</h2>
         </div>
         <div className="template-grid">
           {[
-            ["Artwork Showcase", "作品特写", "聚焦单件作品、细节与估价，适合社交媒体传播。", "showcase"],
-            ["Auction Preview", "专场预告", "以多件精选拍品建立节奏，快速传达专场气质。", "preview"],
-            ["Auction Result", "成交结果", "从作品与估价自然过渡到落槌结果，适合会后发布。", "result"],
-          ].map(([en, zh, body, tone]) => (
-            <Link href="/editor" className={`template-card template-${tone}`} key={en}>
+            ["作品特写", "聚焦单件作品、细节与估价，适合社交媒体传播。", "showcase"],
+            ["专场预告", "以多件精选拍品建立节奏，快速传达专场气质。", "preview"],
+            ["成交结果", "从作品与估价自然过渡到落槌结果，适合会后发布。", "result"],
+          ].map(([title, body, tone]) => (
+            <Link href="/projects/new" className={`template-card template-${tone}`} key={title}>
               <div className="template-visual">
-                <span>{en}</span>
+                <span>{title}</span>
                 <i />
-                <b>AMS</b>
+                <b>拍卖影像</b>
               </div>
-              <h3>{zh}</h3>
+              <h3>{title}</h3>
               <p>{body}</p>
               <span className="card-link">使用模板 <ArrowRight size={15} /></span>
             </Link>
@@ -105,16 +105,16 @@ export default function Home() {
 
       <section className="landing-cta shell">
         <div>
-          <span>READY WHEN YOU ARE</span>
+          <span>现在开始</span>
           <h2>从第一件作品开始。</h2>
         </div>
-        <Link href="/editor" className="button button-light">
+        <Link href="/workbench" className="button button-light">
           进入工作台 <ArrowRight size={17} />
         </Link>
       </section>
       <footer className="landing-footer shell">
-        <span>Auction Motion Studio</span>
-        <span>Deterministic motion, made for art.</span>
+        <span>拍卖影像工作室</span>
+        <span>为艺术品而设计的专业动态影像。</span>
       </footer>
     </main>
   );

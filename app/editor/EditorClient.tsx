@@ -1,7 +1,15 @@
 "use client";
 
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import Link from "next/link";
-import { Player } from "@remotion/player";
+import { Player, type PlayerRef } from "@remotion/player";
 import {
   AlertCircle,
   ArrowLeft,
@@ -9,40 +17,51 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Crosshair,
   Download,
   ImagePlus,
   Minus,
   Plus,
   Redo2,
   RotateCcw,
+  Settings2,
   Sparkles,
   Trash2,
   Undo2,
 } from "lucide-react";
 import { AuctionComposition } from "@/src/remotion/AuctionComposition";
+import {
+  readWorkspaceProject,
+  saveWorkspaceProject,
+} from "@/src/lib/workspaceStorage";
 import { useProjectStore } from "@/src/store/projectStore";
 import type { AssetInput, Currency } from "@/src/types/project";
 
 const inspectFile = (file: File): Promise<AssetInput> =>
   new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const image = new Image();
-    image.onload = () =>
-      resolve({
-        id: `asset-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        url,
-        fileName: file.name,
-        mimeType: file.type,
-        width: image.naturalWidth,
-        height: image.naturalHeight,
-        alt: file.name,
-        focalPoint: { x: 0.5, y: 0.5 },
-      });
-    image.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("无法读取这张图片"));
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        reject(new Error("无法读取这张图片"));
+        return;
+      }
+      const image = new Image();
+      image.onload = () =>
+        resolve({
+          id: `asset-${file.name}-${file.size}-${image.naturalWidth}x${image.naturalHeight}`,
+          url: reader.result as string,
+          fileName: file.name,
+          mimeType: file.type,
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+          alt: file.name,
+          focalPoint: { x: 0.5, y: 0.5 },
+        });
+      image.onerror = () => reject(new Error("无法读取这张图片"));
+      image.src = reader.result;
     };
-    image.src = url;
+    reader.onerror = () => reject(new Error("无法读取这张图片"));
+    reader.readAsDataURL(file);
   });
 
 const Field = ({
@@ -62,17 +81,140 @@ const Field = ({
       key={`${label}-${value ?? ""}`}
       type={type}
       defaultValue={value ?? ""}
-      onBlur={(event) => onCommit(event.currentTarget.value)}
+      onBlur={(event) => {
+        if (event.currentTarget.value !== String(value ?? "")) {
+          onCommit(event.currentTarget.value);
+        }
+      }}
     />
   </label>
 );
 
-export function EditorClient() {
+const FocalPointPicker = ({
+  asset,
+  index,
+  title,
+  onChange,
+}: {
+  asset: AssetInput;
+  index: number;
+  title: string;
+  onChange: (x: number, y: number) => void;
+}) => {
+  const x = asset.focalPoint?.x ?? 0.5;
+  const y = asset.focalPoint?.y ?? 0.5;
+  const updateFromPointer = (event: MouseEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    onChange(
+      (event.clientX - bounds.left) / bounds.width,
+      (event.clientY - bounds.top) / bounds.height,
+    );
+  };
+  const updateFromKeyboard = (event: KeyboardEvent<HTMLDivElement>) => {
+    const step = event.shiftKey ? 0.1 : 0.05;
+    const next = {
+      ArrowLeft: [x - step, y],
+      ArrowRight: [x + step, y],
+      ArrowUp: [x, y - step],
+      ArrowDown: [x, y + step],
+      Home: [0.5, 0.5],
+    }[event.key];
+    if (!next) return;
+    event.preventDefault();
+    onChange(next[0], next[1]);
+  };
+
+  return (
+    <div className="focal-editor">
+      <div
+        className="focal-picker"
+        role="button"
+        tabIndex={0}
+        aria-label={`图片 ${index + 1} 主体位置，水平 ${Math.round(x * 100)}%，垂直 ${Math.round(y * 100)}%`}
+        onClick={updateFromPointer}
+        onKeyDown={updateFromKeyboard}
+      >
+        <img src={asset.url} alt={asset.alt ?? title} />
+        <span
+          className="focal-marker"
+          style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
+          aria-hidden="true"
+        >
+          <Crosshair size={16} />
+        </span>
+      </div>
+      <div className="focal-caption">
+        <span>{index === 0 ? "主图" : `细节 ${index}`}</span>
+        <button
+          type="button"
+          className="focal-reset"
+          disabled={x === 0.5 && y === 0.5}
+          onClick={() => onChange(0.5, 0.5)}
+        >
+          恢复居中
+        </button>
+      </div>
+      <p>点击图片中的主体位置，画面裁切时会优先保留这里。</p>
+    </div>
+  );
+};
+
+export function EditorClient({ projectId }: { projectId?: string }) {
   const store = useProjectStore();
-  const lot = store.project.lots[0];
+  const playerRef = useRef<PlayerRef>(null);
+  const loadedProjectId = useRef<string>();
+  const skipNextSave = useRef(false);
+  const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!projectId) return;
+    const record = readWorkspaceProject(projectId);
+    if (!record) return;
+    const alreadyLoaded =
+      loadedProjectId.current === projectId &&
+      store.project.projectName === record.project.projectName &&
+      store.project.templateId === record.project.templateId &&
+      store.project.lots.length === record.project.lots.length &&
+      store.project.lots[0]?.id === record.project.lots[0]?.id;
+    if (alreadyLoaded) return;
+    skipNextSave.current = true;
+    store.loadProject(record.project);
+    loadedProjectId.current = projectId;
+  }, [projectId, store]);
+
+  useEffect(() => {
+    if (!projectId || loadedProjectId.current !== projectId) return;
+    if (skipNextSave.current) {
+      skipNextSave.current = false;
+      return;
+    }
+    const current = readWorkspaceProject(projectId);
+    if (!current) return;
+    saveWorkspaceProject({
+      ...current,
+      updatedAt: new Date().toISOString(),
+      progress: Math.max(current.progress, 75),
+      project: store.project,
+    });
+  }, [projectId, store.project]);
+
+  const lot =
+    store.project.lots.find((item) => item.id === store.selectedLotId) ??
+    store.project.lots[0];
   const selected =
     store.timeline.scenes.find((scene) => scene.id === store.selectedSceneId) ??
     store.timeline.scenes[0];
+
+  const sceneImages = useMemo(
+    () =>
+      new Map(
+        store.project.lots.map((item) => [
+          item.id,
+          item.images[0]?.url ?? "/demo/artwork-main.jpg",
+        ]),
+      ),
+    [store.project.lots],
+  );
 
   const handleFiles = async (files: FileList | null) => {
     if (!files) return;
@@ -86,19 +228,51 @@ export function EditorClient() {
     }
   };
 
+  const handleCoverFile = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    try {
+      store.setProjectCover(await inspectFile(file));
+    } catch {
+      // The visible store validation state handles unsupported assets.
+    }
+  };
+
+  const previewScene = (sceneId: string) => {
+    store.selectScene(sceneId);
+    const scene = store.timeline.scenes.find((item) => item.id === sceneId);
+    if (scene) {
+      playerRef.current?.pause();
+      playerRef.current?.seekTo(
+        Math.min(
+          scene.endFrame - 1,
+          scene.startFrame +
+            (scene.motionPreset === "resultImpact" ? 44 : 24),
+        ),
+      );
+    }
+  };
+
   return (
     <main className="studio">
       <header className="studio-header">
         <div className="studio-header-left">
-          <Link href="/" className="icon-button" aria-label="返回首页">
+          <Link
+            href="/workbench"
+            className="icon-button"
+            aria-label="返回工作台"
+          >
             <ArrowLeft size={17} />
           </Link>
-          <Link href="/" className="brand brand-compact">
-            <span className="brand-mark">A</span>
-            <span>Auction Motion Studio</span>
+          <Link href="/workbench" className="brand brand-compact">
+            <span className="brand-mark">拍</span>
+            <span>拍卖影像工作室</span>
           </Link>
           <span className="header-divider" />
-          <strong className="project-name">{store.project.projectName}</strong>
+          <div className="project-identity">
+            <strong>{store.project.projectName}</strong>
+            <span>本地草稿 · 自动保存</span>
+          </div>
         </div>
         <div className="studio-toolbar">
           <button
@@ -117,19 +291,6 @@ export function EditorClient() {
           >
             <Redo2 size={16} />
           </button>
-          <select
-            aria-label="模板"
-            value={store.project.templateId}
-            onChange={(event) =>
-              store.setTemplate(
-                event.target.value as typeof store.project.templateId,
-              )
-            }
-          >
-            <option value="artwork-showcase">作品特写</option>
-            <option value="auction-preview">专场预告</option>
-            <option value="auction-result">成交结果</option>
-          </select>
           <select
             aria-label="画幅"
             value={store.project.aspectRatio}
@@ -153,7 +314,10 @@ export function EditorClient() {
             <option value="classic-dark">典藏深色</option>
             <option value="classic-light">画廊浅色</option>
           </select>
-          <button className="button button-ghost button-small" onClick={store.generate}>
+          <button
+            className="button button-ghost button-small"
+            onClick={store.generate}
+          >
             <Sparkles size={15} /> 重新生成
           </button>
           <Link href="/export" className="button button-dark button-small">
@@ -162,79 +326,38 @@ export function EditorClient() {
         </div>
       </header>
 
-      <div className="studio-grid">
-        <aside className="panel asset-panel">
-          <div className="panel-title">
+      <div className="studio-grid studio-grid-lots">
+        <aside className="panel lot-panel">
+          <div className="panel-title panel-title-action">
             <div>
-              <span>素材</span>
-              <small>{lot.images.length} 张图片</small>
+              <span>拍品</span>
+              <small>{store.project.lots.length} 件拍品</small>
             </div>
+            <button
+              className="icon-button"
+              aria-label="添加拍品"
+              onClick={store.addLot}
+            >
+              <Plus size={15} />
+            </button>
           </div>
-          <label className="upload-drop">
-            <ImagePlus size={20} />
-            <strong>添加作品图片</strong>
-            <span>JPG、PNG 或 WebP</span>
-            <input
-              type="file"
-              multiple
-              accept="image/jpeg,image/png,image/webp"
-              onChange={(event) => void handleFiles(event.target.files)}
-            />
-          </label>
-          <div className="asset-list">
-            {lot.images.map((asset, index) => (
-              <article className="asset-item" key={asset.id}>
-                <img src={asset.url} alt={asset.alt || asset.fileName || ""} />
-                <div className="asset-meta">
-                  <strong>{index === 0 ? "主图" : `细节 ${index}`}</strong>
-                  <span>{asset.width} × {asset.height}</span>
-                </div>
-                <button
-                  className="bare-button"
-                  aria-label={`删除图片 ${index + 1}`}
-                  onClick={() => store.removeArtwork(asset.id)}
-                >
-                  <Trash2 size={14} />
-                </button>
-                <div className="focal-controls">
-                  <label>
-                    <span>水平焦点</span>
-                    <input
-                      aria-label={`图片 ${index + 1} 水平焦点`}
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={asset.focalPoint?.x ?? 0.5}
-                      onChange={(event) =>
-                        store.setFocalPoint(
-                          asset.id,
-                          Number(event.target.value),
-                          asset.focalPoint?.y ?? 0.5,
-                        )
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span>垂直焦点</span>
-                    <input
-                      aria-label={`图片 ${index + 1} 垂直焦点`}
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={asset.focalPoint?.y ?? 0.5}
-                      onChange={(event) =>
-                        store.setFocalPoint(
-                          asset.id,
-                          asset.focalPoint?.x ?? 0.5,
-                          Number(event.target.value),
-                        )
-                      }
-                    />
-                  </label>
-                </div>
-              </article>
+          <div className="lot-list">
+            {store.project.lots.map((item) => (
+              <button
+                className={`lot-row ${
+                  item.id === lot.id ? "selected" : ""
+                }`}
+                key={item.id}
+                type="button"
+                onClick={() => store.selectLot(item.id)}
+              >
+                <img src={item.images[0]?.url} alt={item.title} />
+                <span>
+                  <strong>{item.title}</strong>
+                  <small>{item.lotNumber ?? "未填写拍品号"}</small>
+                </span>
+                <i />
+              </button>
             ))}
           </div>
           <button className="reset-button" onClick={store.resetDemo}>
@@ -248,6 +371,7 @@ export function EditorClient() {
               className={`player-shell player-${store.project.aspectRatio.replace(":", "-")}`}
             >
               <Player
+                ref={playerRef}
                 component={AuctionComposition}
                 inputProps={{ project: store.project, timeline: store.timeline }}
                 durationInFrames={store.timeline.totalDurationInFrames}
@@ -260,7 +384,7 @@ export function EditorClient() {
               />
             </div>
             <div className="preview-status">
-              <span>{selected?.label ?? "Preview"}</span>
+              <span>{selected?.label ?? "预览"}</span>
               <span>
                 {(store.timeline.totalDurationInFrames / store.timeline.fps).toFixed(1)}s
                 · {store.timeline.canvas.width} × {store.timeline.canvas.height}
@@ -271,7 +395,7 @@ export function EditorClient() {
           <div className="timeline">
             <div className="timeline-header">
               <span>场景时间线</span>
-              <small>点击选择 · 调整顺序与时长</small>
+              <small>版式自动轮换 · 点击场景预览</small>
             </div>
             <div className="scene-strip">
               {store.scenes.map((scene, index) => (
@@ -280,10 +404,22 @@ export function EditorClient() {
                   className={`scene-card ${
                     store.selectedSceneId === scene.id ? "selected" : ""
                   } ${scene.enabled ? "" : "disabled"}`}
-                  onClick={() => store.selectScene(scene.id)}
+                  onClick={() => previewScene(scene.id)}
                 >
-                  <div className="scene-index">{String(index + 1).padStart(2, "0")}</div>
+                  <div className="scene-preview">
+                    <img
+                      src={
+                        (scene.sourceLotId
+                          ? sceneImages.get(scene.sourceLotId)
+                          : store.project.cover?.url) ??
+                        "/demo/artwork-main.jpg"
+                      }
+                      alt=""
+                    />
+                    <span>{String(index + 1).padStart(2, "0")}</span>
+                  </div>
                   <strong>{scene.label}</strong>
+                  <small>{scene.layoutPreset}</small>
                   <span>{(scene.durationInFrames / 30).toFixed(1)}s</span>
                   <div className="scene-actions">
                     <button
@@ -300,7 +436,10 @@ export function EditorClient() {
                       aria-label="减少时长"
                       onClick={(event) => {
                         event.stopPropagation();
-                        store.updateSceneDuration(scene.id, scene.durationInFrames - 15);
+                        store.updateSceneDuration(
+                          scene.id,
+                          scene.durationInFrames - 15,
+                        );
                       }}
                     >
                       <Minus size={13} />
@@ -309,7 +448,10 @@ export function EditorClient() {
                       aria-label="增加时长"
                       onClick={(event) => {
                         event.stopPropagation();
-                        store.updateSceneDuration(scene.id, scene.durationInFrames + 15);
+                        store.updateSceneDuration(
+                          scene.id,
+                          scene.durationInFrames + 15,
+                        );
                       }}
                     >
                       <Plus size={13} />
@@ -325,7 +467,10 @@ export function EditorClient() {
                       <ChevronRight size={13} />
                     </button>
                   </div>
-                  <label className="scene-toggle" onClick={(event) => event.stopPropagation()}>
+                  <label
+                    className="scene-toggle"
+                    onClick={(event) => event.stopPropagation()}
+                  >
                     <input
                       type="checkbox"
                       checked={scene.enabled}
@@ -339,53 +484,130 @@ export function EditorClient() {
           </div>
         </section>
 
-        <aside className="panel inspector">
-          <div className="panel-title">
+        <aside className="panel inspector lot-inspector">
+          <div className="panel-title inspector-title">
             <div>
-              <span>内容与检查</span>
+              <span>拍品详情</span>
+              <small>图片与资料保持在同一页</small>
+            </div>
+            <button
+              className={`icon-button ${projectSettingsOpen ? "active" : ""}`}
+              aria-label="项目设置"
+              onClick={() => setProjectSettingsOpen((value) => !value)}
+            >
+              <Settings2 size={15} />
+            </button>
+          </div>
+
+          {projectSettingsOpen ? (
+            <section className="project-settings">
+              <label className="project-cover-editor">
+                <img
+                  src={
+                    store.project.cover?.url ??
+                    store.project.lots[0].images[0].url
+                  }
+                  alt="项目封面"
+                />
+                <div className="project-cover-editor-copy">
+                  <ImagePlus size={16} />
+                  <span>
+                    <strong>更换项目封面</strong>
+                    <small>同步用于工作台、视频开场和结尾</small>
+                  </span>
+                </div>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  aria-label="更换项目封面"
+                  onChange={(event) =>
+                    void handleCoverFile(event.currentTarget.files)
+                  }
+                />
+              </label>
+              <div className="field-grid">
+                <Field
+                  label="项目名称"
+                  value={store.project.projectName}
+                  onCommit={store.updateProjectName}
+                />
+                <Field
+                  label="拍卖标题"
+                  value={store.project.auction?.title}
+                  onCommit={(value) => store.updateAuction({ title: value })}
+                />
+                <Field
+                  label="副标题"
+                  value={store.project.auction?.subtitle}
+                  onCommit={(value) => store.updateAuction({ subtitle: value })}
+                />
+                <div className="two-fields">
+                  <Field
+                    label="日期"
+                    value={store.project.auction?.date}
+                    onCommit={(value) => store.updateAuction({ date: value })}
+                  />
+                  <Field
+                    label="地点"
+                    value={store.project.auction?.location}
+                    onCommit={(value) => store.updateAuction({ location: value })}
+                  />
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {store.formError ? (
+            <div className="inline-error">
+              <AlertCircle size={15} /> {store.formError}
+            </div>
+          ) : null}
+
+          <section className="lot-media-section">
+            <div className="inspector-section-heading">
+              <div>
+                <span>{lot.lotNumber ?? "未填写拍品号"}</span>
+                <strong>{lot.title}</strong>
+              </div>
+              <small>{lot.images.length} 张图片</small>
+            </div>
+            <div className="lot-image-grid">
+              {lot.images.map((asset, index) => (
+                <article className="lot-image-item" key={asset.id}>
+                  <FocalPointPicker
+                    asset={asset}
+                    index={index}
+                    title={lot.title}
+                    onChange={(x, y) => store.setFocalPoint(asset.id, x, y)}
+                  />
+                  <button
+                    className="bare-button"
+                    aria-label={`删除图片 ${index + 1}`}
+                    onClick={() => store.removeArtwork(asset.id)}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </article>
+              ))}
+              <label className="lot-image-upload">
+                <ImagePlus size={19} />
+                <strong>添加图片</strong>
+                <span>主图、局部、签名或证书</span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(event) => void handleFiles(event.target.files)}
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="lot-fields-section">
+            <div className="inspector-section-heading">
+              <strong>拍品信息</strong>
               <small>失焦时保存字段</small>
             </div>
-          </div>
-          {store.formError ? (
-            <div className="inline-error"><AlertCircle size={15} /> {store.formError}</div>
-          ) : null}
-          <details open>
-            <summary>项目资料</summary>
-            <div className="field-grid">
-              <Field
-                label="项目名称"
-                value={store.project.projectName}
-                onCommit={store.updateProjectName}
-              />
-              <Field
-                label="拍卖标题"
-                value={store.project.auction?.title}
-                onCommit={(value) => store.updateAuction({ title: value })}
-              />
-              <Field
-                label="副标题"
-                value={store.project.auction?.subtitle}
-                onCommit={(value) => store.updateAuction({ subtitle: value })}
-              />
-              <Field
-                label="日期"
-                value={store.project.auction?.date}
-                onCommit={(value) => store.updateAuction({ date: value })}
-              />
-              <Field
-                label="地点"
-                value={store.project.auction?.location}
-                onCommit={(value) => store.updateAuction({ location: value })}
-              />
-              <Field
-                label="拍卖机构"
-                value={store.project.auction?.houseName}
-                onCommit={(value) => store.updateAuction({ houseName: value })}
-              />
-            </div>
-          </details>
-          <details open>
-            <summary>拍品资料</summary>
             <div className="field-grid">
               <Field
                 label="作品名称"
@@ -393,7 +615,7 @@ export function EditorClient() {
                 onCommit={(value) => store.updateLot(lot.id, { title: value })}
               />
               <Field
-                label="艺术家"
+                label="艺术家 / 年代"
                 value={lot.artist}
                 onCommit={(value) => store.updateLot(lot.id, { artist: value })}
               />
@@ -406,7 +628,9 @@ export function EditorClient() {
                 <Field
                   label="拍品号"
                   value={lot.lotNumber}
-                  onCommit={(value) => store.updateLot(lot.id, { lotNumber: value })}
+                  onCommit={(value) =>
+                    store.updateLot(lot.id, { lotNumber: value })
+                  }
                 />
               </div>
               <Field
@@ -417,7 +641,9 @@ export function EditorClient() {
               <Field
                 label="尺寸"
                 value={lot.dimensions}
-                onCommit={(value) => store.updateLot(lot.id, { dimensions: value })}
+                onCommit={(value) =>
+                  store.updateLot(lot.id, { dimensions: value })
+                }
               />
               <div className="two-fields">
                 <Field
@@ -451,9 +677,11 @@ export function EditorClient() {
                     })
                   }
                 >
-                  {["USD", "GBP", "EUR", "HKD", "CNY", "SGD"].map((currency) => (
-                    <option key={currency}>{currency}</option>
-                  ))}
+                  {["USD", "GBP", "EUR", "HKD", "CNY", "SGD"].map(
+                    (currency) => (
+                      <option key={currency}>{currency}</option>
+                    ),
+                  )}
                 </select>
               </label>
               <Field
@@ -467,21 +695,31 @@ export function EditorClient() {
                 }
               />
             </div>
-          </details>
-          <details open className="quality-section">
-            <summary>
-              质量检查
-              <span className={`score score-${store.qualityReport.passed ? "good" : "warn"}`}>
+          </section>
+
+          <section className="quality-section">
+            <div className="inspector-section-heading">
+              <strong>质量检查</strong>
+              <span
+                className={`score score-${
+                  store.qualityReport.passed ? "good" : "warn"
+                }`}
+              >
                 {store.qualityReport.score}
               </span>
-            </summary>
+            </div>
             {store.qualityReport.issues.length ? (
               <div className="issue-list">
                 {store.qualityReport.issues.map((issue, index) => (
-                  <div className={`issue issue-${issue.severity}`} key={`${issue.code}-${index}`}>
+                  <div
+                    className={`issue issue-${issue.severity}`}
+                    key={`${issue.code}-${index}`}
+                  >
                     <AlertCircle size={14} />
                     <div>
-                      <strong>{issue.code}</strong>
+                      <strong>
+                        {issue.severity === "error" ? "需要处理" : "建议优化"}
+                      </strong>
                       <span>{issue.message}</span>
                     </div>
                   </div>
@@ -492,9 +730,10 @@ export function EditorClient() {
                 <CheckCircle2 size={16} /> 所有关键检查均已通过
               </div>
             )}
-          </details>
+          </section>
         </aside>
       </div>
+
       <div className="mobile-export">
         <Link href="/export" className="button button-dark">
           导出成片 <ArrowRight size={16} />

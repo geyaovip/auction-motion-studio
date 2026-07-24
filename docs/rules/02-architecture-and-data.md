@@ -130,6 +130,7 @@ Stable IDs SHOULD be derived from project/lot/scene role, not render order alone
 Zustand owns editable project state, blueprints, latest resolved output, report, and user history.
 
 - Undo/Redo records semantic user operations only.
+- A field blur, picker selection, or settings commit whose normalized value is unchanged is a no-op and MUST NOT create a history entry.
 - Playback frame, render progress, hover, selection, and cached measurements are not history entries.
 - A semantic input change invalidates only dependent cache layers.
 - Scene reorder rebuilds timeline and motion frame mapping; it does not recompute per-scene layout unless content, canvas, theme, or asset geometry changed.

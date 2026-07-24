@@ -31,6 +31,9 @@ Use the SDS safe-area constants as centralized configuration. In `9:16`, core te
 
 - Backgrounds may bleed.
 - A full-bleed hero image may bleed when its preset allows it.
+- Bounded visual-media frames use the canvas geometric center even when
+  platform text overlays create asymmetric left/right safe insets. Text still
+  obeys the full asymmetric safe area.
 - Titles, artist, metadata, prices, captions, CTA, and logos remain inside the applicable safe area.
 - Optical offsets never justify crossing a safe boundary.
 
@@ -47,9 +50,25 @@ Classify images using the SDS thresholds:
 Required behavior:
 
 - Preserve intrinsic aspect ratio; never stretch.
+- Remotion image nodes MUST opt out of application-shell responsive image
+  clamps such as `max-width: 100%`; resolved width and height are authoritative.
 - Use explicit crop math around the normalized focal point.
+- A lot-image focal point affects only resolved placements that use `cover`; it has no effect on a `contain` placement.
 - Prefer `contain` or blur extension when crop limits would be exceeded.
-- Panorama and ultra-portrait assets do not use naive full-screen cover.
+- Opening and ending artwork always use `contain` over a deterministic blurred extension so the complete project cover remains recognizable at every supported canvas ratio.
+- Panorama and ultra-portrait assets do not use naive full-screen cover or
+  shrink-to-fit presentation in Hero scenes. The engine enlarges them beyond
+  the minimum cover scale, shows only a detail window, keeps text in a separate
+  information region, and scans the artwork's long axis deterministically:
+  panorama moves horizontally and ultra portrait moves vertically.
+- On a `9:16` Hero, elongated artwork uses a centered, wide detail viewport in
+  the upper half with a full-width information region below. Panorama and
+  ultra-portrait assets do not use a narrow strip beside copy or a shallow
+  banner above excessive empty space.
+- On a `16:9` Hero, the ultra-portrait image viewport occupies roughly one
+  third to two fifths of the canvas width. The adjacent information region includes lot
+  number, title, artist when supplied, and available year/material/dimensions;
+  do not leave a narrow image strip beside an almost empty text field.
 - Low-resolution assets warn, use conservative scale, and prefer contained foreground over aggressive zoom.
 - A missing hero image blocks export; missing detail images remove their detail scenes.
 
@@ -112,7 +131,9 @@ Limits:
 - element entry `>= 9f`
 - non-camera displacement `<= 32px`
 - camera scale `<= 1.08`, reduced for low-resolution assets
-- pan `<= 80px`
+- ordinary-scene pan `<= 80px`
+- elongated-artwork scan uses available crop overflow and is capped at 32% of
+  the image viewport per direction
 - transition `>= 9f`
 - readable hold `>= 45f`
 
@@ -126,17 +147,29 @@ Opening → Hero → available Details → available Metadata → optional Estim
 
 Typical 16–22s, short mode 12–15s, hard maximum 30s.
 
+Opening and Ending preserve the complete project cover; they never use a naive full-canvas crop.
+
+The default sequence alternates composition roles: full-bleed hero, picture-in-picture detail, editorial metadata, and data-led estimate. Consecutive meaningful scenes SHOULD NOT reuse the same layout preset.
+
 ### Auction Preview
 
 Opening → up to five Lot Heroes → Auction Info → Ending.
 
 Each lot receives 3.0–4.2s. Initial selection is deterministic; user reorder becomes authoritative.
 
+Lot heroes rotate deterministically through full-bleed, image-left/text-right, and image-right/text-left presets. The rotation derives from stable lot order and contains no randomness.
+
 ### Auction Result
 
-Opening → Artwork Hero → Estimate → Sale Result → Ending.
+Opening → up to five `(Artwork Hero → Sale Result)` pairs → Ending.
 
-`salePrice` is mandatory. Do not compute a gain or percentage.
+Only lots with `salePrice` enter the result sequence; at least one is mandatory.
+Stable lot order is authoritative. Do not compute a gain or percentage.
+
+Each Sale Result is data-led: the supplied sale price is the primary visual
+while the related artwork remains present as supporting context. Pair layouts
+rotate deterministically to avoid repeating one composition across the result
+reel.
 
 ## Timeline
 

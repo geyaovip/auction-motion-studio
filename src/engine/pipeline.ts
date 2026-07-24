@@ -16,7 +16,13 @@ const cleanOptional = (value: string | undefined): string | undefined => {
 export const normalizeProjectInput = (raw: ProjectInput): ProjectInput => {
   const normalized: ProjectInput = {
     ...raw,
-    projectName: raw.projectName.trim() || "Untitled Project",
+    projectName: raw.projectName.trim() || "未命名项目",
+    cover: raw.cover
+      ? {
+          ...raw.cover,
+          focalPoint: raw.cover.focalPoint ?? { x: 0.5, y: 0.5 },
+        }
+      : undefined,
     auction: raw.auction
       ? {
           title: cleanOptional(raw.auction.title),
@@ -29,7 +35,7 @@ export const normalizeProjectInput = (raw: ProjectInput): ProjectInput => {
       : undefined,
     lots: raw.lots.map((lot) => ({
       ...lot,
-      title: lot.title.trim() || "Untitled",
+      title: lot.title.trim() || "未命名作品",
       artist: cleanOptional(lot.artist),
       year: cleanOptional(lot.year),
       medium: cleanOptional(lot.medium),

@@ -52,6 +52,7 @@ export interface ProjectInput {
   templateId: TemplateId;
   aspectRatio: AspectRatio;
   themeId: ThemeId;
+  cover?: AssetInput;
   logo?: AssetInput;
   lots: LotInput[];
   auction?: AuctionInfo;
@@ -121,6 +122,12 @@ export interface ImagePlacement {
   fit: "cover" | "contain";
 }
 
+export interface CameraTrack {
+  translateX: readonly [number, number];
+  translateY: readonly [number, number];
+  scale: readonly [number, number];
+}
+
 interface ResolvedNodeBase {
   id: string;
   bounds: Rect;
@@ -133,6 +140,7 @@ export interface ResolvedImageNode extends ResolvedNodeBase {
   placement: ImagePlacement;
   blurBackground: boolean;
   radius: number;
+  cameraTrack?: CameraTrack;
 }
 
 export interface ResolvedTextNode extends ResolvedNodeBase {
@@ -161,6 +169,13 @@ export type ResolvedNode = ResolvedImageNode | ResolvedTextNode;
 export interface ResolvedScene extends SceneBlueprint {
   nodes: ResolvedNode[];
   background: string;
+  backgroundMode:
+    | "gallery"
+    | "artwork"
+    | "detail"
+    | "information"
+    | "estimate"
+    | "result";
   accent: string;
   textPrimary: string;
   textSecondary: string;

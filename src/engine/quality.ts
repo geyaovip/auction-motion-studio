@@ -40,7 +40,7 @@ export const checkQuality = (
         code: "TITLE_MISSING_USING_UNTITLED",
         severity: "warning",
         sceneId: `hero-${lot.id}`,
-        message: `${lot.lotNumber ?? lot.id} 未填写标题，已使用 Untitled`,
+        message: `${lot.lotNumber ?? lot.id} 未填写标题，已使用“未命名作品”`,
         suggestedFix: "补充拍品标题以提升发布质量",
       });
     }

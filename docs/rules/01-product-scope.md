@@ -18,7 +18,9 @@ Auction Motion Studio turns catalog data, artwork images, and optional branding 
 The user should finish this flow:
 
 ```text
-Choose template
+Open local workbench
+→ create project
+→ choose template and add project cover
 → add artwork and catalog data
 → choose aspect ratio and video theme
 → Generate
@@ -32,16 +34,33 @@ The user MUST NOT need to repair element positions, font sizes, crops, transitio
 
 ### Home
 
-- Starts a project from one of the three supported templates.
+- Opens the local workbench or starts the create-project flow.
 - Explains required input and output in one screen.
 - Uses demo data as a fast path.
 - Does not become a marketing-heavy landing site.
 
+### Workbench
+
+- Lists local projects with cover, type, lot count, last edit time, and status.
+- Filters projects by the three supported templates.
+- Exposes one primary `Create video` action.
+- Stores projects locally and does not imply accounts, cloud sync, or collaboration.
+
+### Create project
+
+- Chooses one of the three supported templates before entering the editor.
+- Captures project-level cover and auction information separately from lot data.
+- Creates a local draft and then enters its project-detail editor route.
+
 ### Editor
 
 - Contains toolbar, assets panel, scaled final-canvas preview, inspector, and scene timeline.
+- Lists project lots at left; selecting a lot shows that lot's images and semantic fields together in the inspector.
+- Keeps project-level cover and auction information separate from lot-level images and facts.
+- Lets the user replace the project cover inside Project Settings; the same validated asset updates the Workbench card, Opening, and Ending.
 - Exposes semantic controls only.
-- Keeps Generate, Preview, Export, Undo, Redo, Aspect Ratio, and Template visible or easy to reach.
+- Keeps Generate, Preview, Export, Undo, Redo, and Aspect Ratio visible or easy to reach.
+- Treats the project template chosen during creation as fixed project structure; the editor does not expose template switching.
 - Shows unresolved quality issues near the affected lot or scene.
 
 ### Export
@@ -54,14 +73,13 @@ The user MUST NOT need to repair element positions, font sizes, crops, transitio
 
 - `artwork-showcase`: one primary lot with optional details, metadata, and estimate.
 - `auction-preview`: up to five lots; order is user-controlled after initial generation.
-- `auction-result`: requires `salePrice`; otherwise generation/export is blocked with a corrective message.
+- `auction-result`: up to five lots with supplied `salePrice`; otherwise generation/export is blocked with a corrective message.
 
 ## Supported user edits
 
 - Artwork and logo upload, removal, and order
 - Focal point
 - Project, auction, and lot semantic fields
-- Template
 - Aspect ratio: `16:9`, `9:16`, `1:1`
 - Video theme: `classic-light`, `classic-dark`
 - Scene order, enabled state, and bounded duration

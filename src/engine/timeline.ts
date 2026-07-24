@@ -1,5 +1,6 @@
 import { CANVAS_PRESETS } from "@/src/engine/config";
 import { resolveSceneLayout } from "@/src/engine/layout";
+import { resolveSceneMotion } from "@/src/engine/motion";
 import type {
   ProjectInput,
   ResolvedScene,
@@ -21,8 +22,9 @@ export const buildTimeline = (
         index === 0 ? 0 : scene.transition?.durationInFrames ?? 0;
       const startFrame = Math.max(0, cursor - transition);
       const endFrame = startFrame + scene.durationInFrames;
+      const resolvedLayout = resolveSceneLayout(project, scene);
       scenes.push({
-        ...resolveSceneLayout(project, scene),
+        ...resolveSceneMotion(project, resolvedLayout),
         startFrame,
         endFrame,
       });

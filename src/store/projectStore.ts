@@ -12,7 +12,6 @@ import type {
   QualityReport,
   ResolvedTimeline,
   SceneBlueprint,
-  TemplateId,
   ThemeId,
 } from "@/src/types/project";
 
@@ -24,11 +23,13 @@ interface ProjectStore {
   history: ProjectSnapshot[];
   future: ProjectSnapshot[];
   selectedSceneId: string;
+  selectedLotId: string;
   formError?: string;
+  loadProject: (project: ProjectInput) => void;
   generate: () => void;
-  setTemplate: (templateId: TemplateId) => void;
   setAspectRatio: (aspectRatio: AspectRatio) => void;
   setTheme: (themeId: ThemeId) => void;
+  setProjectCover: (cover: AssetInput) => void;
   updateProjectName: (projectName: string) => void;
   updateAuction: (
     patch: Partial<NonNullable<ProjectInput["auction"]>>,
@@ -37,6 +38,8 @@ interface ProjectStore {
     lotId: string,
     patch: Partial<ProjectInput["lots"][number]>,
   ) => void;
+  selectLot: (lotId: string) => void;
+  addLot: () => void;
   addArtwork: (asset: AssetInput) => void;
   removeArtwork: (assetId: string) => void;
   setFocalPoint: (assetId: string, x: number, y: number) => void;
@@ -85,6 +88,20 @@ export const useProjectStore = create<ProjectStore>((set) => ({
   history: [],
   future: [],
   selectedSceneId: initialResult.scenes[1]?.id ?? initialResult.scenes[0].id,
+  selectedLotId: initialResult.project.lots[0].id,
+
+  loadProject: (project) =>
+    set(() => {
+      const result = safePipeline(project);
+      if (result instanceof Error) return { formError: result.message };
+      return {
+        ...resultState(result),
+        history: [],
+        future: [],
+        selectedSceneId: result.scenes[1]?.id ?? result.scenes[0].id,
+        selectedLotId: result.project.lots[0].id,
+      };
+    }),
 
   generate: () =>
     set((state) => {
@@ -93,21 +110,9 @@ export const useProjectStore = create<ProjectStore>((set) => ({
       return resultState(result);
     }),
 
-  setTemplate: (templateId) =>
-    set((state) => {
-      const project = { ...state.project, templateId };
-      const result = safePipeline(project);
-      if (result instanceof Error) return { formError: result.message };
-      return {
-        ...resultState(result),
-        history: [...state.history, snapshot(state)].slice(-30),
-        future: [],
-        selectedSceneId: result.scenes[1]?.id ?? result.scenes[0].id,
-      };
-    }),
-
   setAspectRatio: (aspectRatio) =>
     set((state) => {
+      if (state.project.aspectRatio === aspectRatio) return {};
       const result = safePipeline(
         { ...state.project, aspectRatio },
         state.scenes,
@@ -122,7 +127,28 @@ export const useProjectStore = create<ProjectStore>((set) => ({
 
   setTheme: (themeId) =>
     set((state) => {
+      if (state.project.themeId === themeId) return {};
       const result = safePipeline({ ...state.project, themeId }, state.scenes);
+      if (result instanceof Error) return { formError: result.message };
+      return {
+        ...resultState(result),
+        history: [...state.history, snapshot(state)].slice(-30),
+        future: [],
+      };
+    }),
+
+  setProjectCover: (cover) =>
+    set((state) => {
+      if (
+        state.project.cover?.id === cover.id &&
+        state.project.cover.url === cover.url
+      ) {
+        return {};
+      }
+      const result = safePipeline(
+        { ...state.project, cover },
+        state.scenes,
+      );
       if (result instanceof Error) return { formError: result.message };
       return {
         ...resultState(result),
@@ -133,6 +159,7 @@ export const useProjectStore = create<ProjectStore>((set) => ({
 
   updateProjectName: (projectName) =>
     set((state) => {
+      if (state.project.projectName === projectName) return {};
       const result = safePipeline(
         { ...state.project, projectName },
         state.scenes,
@@ -147,6 +174,12 @@ export const useProjectStore = create<ProjectStore>((set) => ({
 
   updateAuction: (patch) =>
     set((state) => {
+      const auction = state.project.auction;
+      const changed = Object.entries(patch).some(
+        ([key, value]) =>
+          auction?.[key as keyof NonNullable<ProjectInput["auction"]>] !== value,
+      );
+      if (!changed) return {};
       const project = {
         ...state.project,
         auction: { ...state.project.auction, ...patch },
@@ -162,6 +195,13 @@ export const useProjectStore = create<ProjectStore>((set) => ({
 
   updateLot: (lotId, patch) =>
     set((state) => {
+      const currentLot = state.project.lots.find((lot) => lot.id === lotId);
+      if (!currentLot) return {};
+      const changed = Object.entries(patch).some(
+        ([key, value]) =>
+          currentLot[key as keyof typeof currentLot] !== value,
+      );
+      if (!changed) return {};
       const project = {
         ...state.project,
         lots: state.project.lots.map((lot) =>
@@ -177,15 +217,47 @@ export const useProjectStore = create<ProjectStore>((set) => ({
       };
     }),
 
+  selectLot: (selectedLotId) => set({ selectedLotId }),
+
+  addLot: () =>
+    set((state) => {
+      const nextNumber = state.project.lots.length + 1;
+      const lot = {
+        id: `lot-local-${Date.now()}`,
+        title: `未命名拍品 ${nextNumber}`,
+        lotNumber: `拍品 ${nextNumber}`,
+        currency: "CNY" as const,
+        images: [
+          {
+            id: `lot-local-${Date.now()}-image`,
+            url: "/demo/artwork-main.jpg",
+            width: 1600,
+            height: 2089,
+            alt: `未命名拍品 ${nextNumber}`,
+            focalPoint: { x: 0.5, y: 0.47 },
+          },
+        ],
+      };
+      const project = { ...state.project, lots: [...state.project.lots, lot] };
+      const result = safePipeline(project, state.scenes);
+      if (result instanceof Error) return { formError: result.message };
+      return {
+        ...resultState(result),
+        selectedLotId: lot.id,
+        history: [...state.history, snapshot(state)].slice(-30),
+        future: [],
+      };
+    }),
+
   addArtwork: (asset) =>
     set((state) => {
-      const lot = state.project.lots[0];
       const project = {
         ...state.project,
-        lots: [
-          { ...lot, images: [...lot.images, asset] },
-          ...state.project.lots.slice(1),
-        ],
+        lots: state.project.lots.map((lot) =>
+          lot.id === state.selectedLotId
+            ? { ...lot, images: [...lot.images, asset] }
+            : lot,
+        ),
       };
       const result = safePipeline(project, state.scenes);
       if (result instanceof Error) return { formError: result.message };
@@ -198,19 +270,22 @@ export const useProjectStore = create<ProjectStore>((set) => ({
 
   removeArtwork: (assetId) =>
     set((state) => {
-      const lot = state.project.lots[0];
+      const lot =
+        state.project.lots.find((item) => item.id === state.selectedLotId) ??
+        state.project.lots[0];
       if (lot.images.length <= 1) {
         return { formError: "至少保留一张主图" };
       }
       const project = {
         ...state.project,
-        lots: [
-          {
-            ...lot,
-            images: lot.images.filter((asset) => asset.id !== assetId),
-          },
-          ...state.project.lots.slice(1),
-        ],
+        lots: state.project.lots.map((item) =>
+          item.id === lot.id
+            ? {
+                ...item,
+                images: item.images.filter((asset) => asset.id !== assetId),
+              }
+            : item,
+        ),
       };
       const result = safePipeline(project, state.scenes);
       if (result instanceof Error) return { formError: result.message };
@@ -223,6 +298,20 @@ export const useProjectStore = create<ProjectStore>((set) => ({
 
   setFocalPoint: (assetId, x, y) =>
     set((state) => {
+      const clamped = {
+        x: Math.min(1, Math.max(0, x)),
+        y: Math.min(1, Math.max(0, y)),
+      };
+      const current = state.project.lots
+        .flatMap((lot) => lot.images)
+        .find((asset) => asset.id === assetId);
+      if (
+        current &&
+        (current.focalPoint?.x ?? 0.5) === clamped.x &&
+        (current.focalPoint?.y ?? 0.5) === clamped.y
+      ) {
+        return {};
+      }
       const project = {
         ...state.project,
         lots: state.project.lots.map((lot) => ({
@@ -231,10 +320,7 @@ export const useProjectStore = create<ProjectStore>((set) => ({
             asset.id === assetId
               ? {
                   ...asset,
-                  focalPoint: {
-                    x: Math.min(1, Math.max(0, x)),
-                    y: Math.min(1, Math.max(0, y)),
-                  },
+                  focalPoint: clamped,
                 }
               : asset,
           ),
@@ -336,5 +422,6 @@ export const useProjectStore = create<ProjectStore>((set) => ({
       history: [],
       future: [],
       selectedSceneId: initialResult.scenes[1]?.id ?? initialResult.scenes[0].id,
+      selectedLotId: initialResult.project.lots[0].id,
     }),
 }));
