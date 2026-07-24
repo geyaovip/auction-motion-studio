@@ -13,7 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://auction-motion-studio.sites.openai.com"),
+  metadataBase: new URL(
+    "https://auction-motion-studio.gaigai111.chatgpt.site",
+  ),
   title: {
     default: "Auction Motion Studio",
     template: "%s · Auction Motion Studio",
