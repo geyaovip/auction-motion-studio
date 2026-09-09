@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    "https://auction-motion-studio.gaigai111.chatgpt.site",
+    "https://auction-motion-studio.492746023.workers.dev",
   ),
   title: {
     default: "拍卖影像工作室",
